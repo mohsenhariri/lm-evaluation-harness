@@ -258,6 +258,12 @@ def setup_parser() -> argparse.ArgumentParser:
         default=False,
         help="Use with --log_samples. Only model outputs will be saved and metrics will not be evaluated.",
     )
+    parser.add_argument(
+        "--kvq",
+        type=try_parse_json,
+        default=None,
+        help="JSON string or dict defining kv cache quantization config: e.g. '{\"nbits_k\":4,...}'. Enables KVQ and cache_config={kvq}."
+    )
     default_seed_string = "0,1234,1234,1234"
     parser.add_argument(
         "--seed",
@@ -471,6 +477,7 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
         apply_chat_template=args.apply_chat_template,
         fewshot_as_multiturn=args.fewshot_as_multiturn,
         gen_kwargs=args.gen_kwargs,
+        kvq=args.kvq,
         task_manager=task_manager,
         predict_only=args.predict_only,
         random_seed=args.seed[0],

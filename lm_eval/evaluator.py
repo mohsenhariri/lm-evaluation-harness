@@ -70,6 +70,7 @@ def simple_evaluate(
     apply_chat_template: Union[bool, str] = False,
     fewshot_as_multiturn: bool = False,
     gen_kwargs: Union[str, dict, None] = None,
+    kvq: Optional[dict] = None,
     task_manager: Optional[TaskManager] = None,
     verbosity=None,
     predict_only: bool = False,
@@ -217,6 +218,18 @@ def simple_evaluate(
         )
         if not gen_kwargs:
             gen_kwargs = None
+    
+
+    if kvq is not None:
+
+        if isinstance(kvq, str):
+            kvq = simple_parse_args_string(kvq)
+        if not isinstance(kvq, dict):
+            raise ValueError(f"kvq must be a dict or key=value string, got {type(kvq)}")
+
+        eval_logger.info(
+            f"Using kv cache quantization config: {kvq}"
+        )
 
     if isinstance(model, str):
         if model_args is None:
@@ -257,6 +270,9 @@ def simple_evaluate(
             )
         eval_logger.info("Using pre-initialized model")
         lm = model
+
+    # attach kv cache quantization config to model
+    lm.kvq = kvq
 
     if use_cache is not None:
         eval_logger.info(f"Using cache at {use_cache + '_rank' + str(lm.rank) + '.db'}")
@@ -401,6 +417,9 @@ def simple_evaluate(
                 "limit": limit,
                 "bootstrap_iters": bootstrap_iters,
                 "gen_kwargs": gen_kwargs,
+                # KV cache quantization and generate settings
+                "cache_implementation": getattr(lm, "kvq", None) and "quantized" or None,
+                "cache_config": getattr(lm, "kvq", None),
                 "random_seed": random_seed,
                 "numpy_seed": numpy_random_seed,
                 "torch_seed": torch_random_seed,

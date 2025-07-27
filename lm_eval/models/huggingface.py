@@ -42,6 +42,13 @@ from lm_eval.models.utils import (
 )
 
 
+try:
+    from kvq import KVQConfig, KVQ
+except ImportError:
+    print("ImportError: KVQ package not found. Use your local KVQ package if needed.")
+    raise
+
+
 if TYPE_CHECKING:
     from transformers.quantizers.auto import AutoQuantizationConfig
 
@@ -977,6 +984,34 @@ class HFLM(TemplateLM):
             dtype=self.mixed_precision_dtype,
             enabled=self.mixed_precision_dtype is not None,
         ):
+
+            if self.kvq is not None:
+
+                kvq_config = dict(self.kvq)
+
+                kvq_config["device"] = self.device
+                kvq_config["model"] = self.model.name_or_path
+                kvq_config["compute_dtype"] = self.model.dtype
+
+
+                eval_logger.info(f"KVQ Config: {kvq_config}")
+
+                cache_config = KVQConfig(**kvq_config)
+
+                eval_logger.info(f"KVQ Cache Config: {cache_config}")
+
+                cache = KVQ(cache_config)
+
+                return self.model.generate(
+                    input_ids=context,
+                    max_length=max_length,
+                    stopping_criteria=stopping_criteria,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    use_cache=True,
+                    past_key_values=cache,
+                    **generation_kwargs,
+                    )
+            
             return self.model.generate(
                 input_ids=context,
                 max_length=max_length,
